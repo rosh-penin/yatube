@@ -1,0 +1,3 @@
+CUT_POSTS_NUM: int = 10
+PAGES: int = 10
+CUT_STR_POST = 15

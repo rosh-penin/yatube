@@ -1,7 +1,7 @@
 import shutil
 
 from django.core.cache import cache
-from django.urls import reverse, reverse_lazy
+from django.urls import reverse
 from django.test import override_settings
 
 from posts.models import Post, Group, Follow

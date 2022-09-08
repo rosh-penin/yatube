@@ -245,7 +245,7 @@ class FollowersTests(TestBaseWithClients):
         response = self.author_client.get(self.ADDRESS_UNFOLLOW, follow=True)
         self.assertFalse(response.context['following'])
 
-    def test_new_post_added_to_follow(self):
+    def test_new_post_added_to_follow_index(self):
         self.author_client.get(self.ADDRESS_FOLLOW, follow=True)
         response_author = self.author_client.get(reverse('posts:follow_index'))
         response_non_author = self.non_author_client.get(

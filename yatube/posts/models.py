@@ -87,3 +87,18 @@ class Comment(CreatedModel):
         ordering = ('-created',)
         verbose_name = 'Комментарий'
         verbose_name_plural = 'Комментарии'
+
+
+class Follow(models.Model):
+    user = models.ManyToManyField(
+        User,
+        on_delete=models.SET_NULL,
+        related_name='follower',
+        verbose_name='подписчик',
+    )
+    author = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='following',
+        verbose_name='писака',
+    )

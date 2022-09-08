@@ -1,10 +1,10 @@
 import shutil
 
 from django.core.cache import cache
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 from django.test import override_settings
 
-from posts.models import Post, Group
+from posts.models import Post, Group, Follow
 from posts.constants import PAGES
 from .constants import (
     TestBaseWithClients,
@@ -200,7 +200,7 @@ class ImageTests(TestBaseWithClients):
         )
 
 
-class CacheTest(TestBaseWithClients):
+class CacheTests(TestBaseWithClients):
     """Tests for cache."""
     def test_cached_content_index(self):
         """
@@ -216,3 +216,40 @@ class CacheTest(TestBaseWithClients):
         cache.clear()
         response3 = self.author_client.get(self.ADDRESS_INDEX)
         self.assertNotEqual(response1.content, response3.content)
+
+
+class FollowersTests(TestBaseWithClients):
+    """Test for following."""
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.ADDRESS_FOLLOW = (
+            reverse(
+                'posts:profile_follow',
+                kwargs=cls.ARG_PROFILE
+            )
+        )
+        cls.ADDRESS_UNFOLLOW = (
+            reverse(
+                'posts:profile_unfollow',
+                kwargs=cls.ARG_PROFILE
+            )
+        )
+        Follow.objects.create(author=cls.author)
+
+    def test_can_follow_and_unfollow(self):
+        response = self.author_client.get(self.ADDRESS_PROFILE)
+        self.assertFalse(response.context['following'])
+        response = self.author_client.get(self.ADDRESS_FOLLOW, follow=True)
+        self.assertTrue(response.context['following'])
+        response = self.author_client.get(self.ADDRESS_UNFOLLOW, follow=True)
+        self.assertFalse(response.context['following'])
+
+    def test_new_post_added_to_follow(self):
+        self.author_client.get(self.ADDRESS_FOLLOW, follow=True)
+        response_author = self.author_client.get(reverse('posts:follow_index'))
+        response_non_author = self.non_author_client.get(
+            reverse('posts:follow_index')
+        )
+        self.assertIn(self.post, response_author.context['page_obj'])
+        self.assertNotIn(self.post, response_non_author.context['page_obj'])

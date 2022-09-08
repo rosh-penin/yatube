@@ -1,10 +1,39 @@
+from itertools import chain
+from operator import attrgetter
+
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect
-from django.views.generic import FormView, ListView, DetailView, UpdateView
+from django.views.generic import (
+    FormView,
+    ListView,
+    DetailView,
+    UpdateView,
+    CreateView
+)
 from django.urls import reverse
 
-from .models import Post, Group, User
+from .models import Post, Group, User, Follow
 from .forms import PostForm, CommentForm
+
+
+def get_sorted_list_from_managers(passed_list):
+    posts = sorted(chain(passed_list), key=attrgetter('created'), reverse=True)
+    return posts
+
+
+def check_author_follow_table(author):
+    if not Follow.objects.filter(author=author).exists():
+        Follow.objects.create(author=author)
+
+
+def get_author(username):
+    return get_object_or_404(User, username=username)
+
+
+def check_following(author, user):
+    if Follow.objects.filter(author=author, users=user).exists():
+        return True
+    return False
 
 
 class IndexView(ListView):
@@ -35,16 +64,18 @@ class ProfileView(ListView):
     template_name = 'posts/profile.html'
     paginate_by = 10
 
-    def get_author(self):
-        return get_object_or_404(User, username=self.kwargs['username'])
-
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['author'] = self.get_author()
+        context['author'] = get_author(self.kwargs['username'])
+        if self.request.user.is_authenticated:
+            context['following'] = check_following(
+                get_author(self.kwargs['username']),
+                self.request.user,
+            )
         return context
 
     def get_queryset(self):
-        author = self.get_author()
+        author = get_author(self.kwargs['username'])
         posts = author.posts.all()
         return posts
 
@@ -81,6 +112,12 @@ class PostCreateView(LoginRequiredMixin, FormView):
         completed_form.author = self.request.user
         completed_form.save()
         return super().form_valid(form)
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+        check_author_follow_table(request.user)
+        return super().dispatch(request, *args, **kwargs)
 
 
 class PostEditView(LoginRequiredMixin, UpdateView):
@@ -135,4 +172,35 @@ class AddCommentView(LoginRequiredMixin, FormView):
         return reverse(
             'posts:post_detail',
             kwargs={'post_id': self.kwargs['post_id']}
+        )
+
+
+class FollowIndexView(LoginRequiredMixin, ListView):
+    template_name = 'posts/follow.html'
+    paginate_by = 10
+
+    def get_queryset(self):
+        user = get_object_or_404(User, username=self.request.user)
+        related_model_queries = user.follower.all()
+        posts_unsorted = []
+        for single_query in related_model_queries:
+            posts_unsorted += single_query.author.posts.all()
+        posts = get_sorted_list_from_managers(posts_unsorted)
+        return posts
+
+
+class ProfileFollowUnFollowView(LoginRequiredMixin, CreateView):
+    def get(self, request, *args, **kwargs):
+        author = get_author(self.kwargs['username'])
+        user = request.user
+        if check_following(author, user):
+            Follow.objects.get(author=author, users=user).users.remove(user)
+        else:
+            Follow.objects.get(author=author).users.add(user)
+
+        return redirect(
+            reverse(
+                'posts:profile',
+                kwargs={'username': self.kwargs['username']}
+            )
         )

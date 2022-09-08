@@ -90,11 +90,11 @@ class Comment(CreatedModel):
 
 
 class Follow(models.Model):
-    user = models.ManyToManyField(
+    users = models.ManyToManyField(
         User,
-        on_delete=models.SET_NULL,
         related_name='follower',
         verbose_name='подписчик',
+        blank=True,
     )
     author = models.OneToOneField(
         User,

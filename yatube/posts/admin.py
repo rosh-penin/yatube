@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Post, Group
+from .models import Post, Group, Follow
 
 
 @admin.register(Group)
@@ -35,3 +35,14 @@ class PostAdmin(admin.ModelAdmin):
     list_filter = ('created',)
     empty_value_display = '-пусто-'
     list_editable = ('group',)
+
+
+@admin.register(Follow)
+class FollowAdmin(admin.ModelAdmin):
+    """
+    I dont know what i'm doing anymore.
+    """
+    list_display = (
+        'pk',
+        'author',
+    )

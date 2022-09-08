@@ -1,8 +1,12 @@
+import shutil
 from http import HTTPStatus
 
-from .constants import TestBaseWithClients
+from django.test import override_settings
+
+from .constants import TestBaseWithClients, TEMP_MEDIA_ROOT
 
 
+@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class UrlTests(TestBaseWithClients):
     @classmethod
     def setUpClass(cls):
@@ -15,6 +19,12 @@ class UrlTests(TestBaseWithClients):
             f'/posts/{cls.post.pk}/': 'posts/post_detail.html',
             '/create/': 'posts/post_create.html',
         }
+
+    @classmethod
+    def tearDownClass(cls):
+        """Delete temp media folder."""
+        super().tearDownClass()
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def test_url_access_with_templates_for_authorized_user(self):
         for address, template in self.urls_of_templates.items():

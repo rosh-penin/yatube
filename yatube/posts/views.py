@@ -31,7 +31,7 @@ def get_author(username):
 
 
 def check_following(author, user):
-    if Follow.objects.filter(author=author, users=user).exists():
+    if Follow.objects.filter(author=author, user=user).exists():
         return True
     return False
 
@@ -194,9 +194,9 @@ class ProfileFollowUnFollowView(LoginRequiredMixin, CreateView):
         author = get_author(self.kwargs['username'])
         user = request.user
         if check_following(author, user):
-            Follow.objects.get(author=author, users=user).users.remove(user)
+            Follow.objects.get(author=author, user=user).user.remove(user)
         else:
-            Follow.objects.get(author=author).users.add(user)
+            Follow.objects.get(author=author).user.add(user)
 
         return redirect(
             reverse(

@@ -90,7 +90,7 @@ class Comment(CreatedModel):
 
 
 class Follow(models.Model):
-    users = models.ManyToManyField(
+    user = models.ManyToManyField(
         User,
         related_name='follower',
         verbose_name='подписчик',

@@ -4,7 +4,7 @@ from django.core.cache import cache
 from django.urls import reverse
 from django.test import override_settings
 
-from posts.models import Post, Group, Follow
+from posts.models import Post, Group
 from posts.constants import PAGES
 from .constants import (
     TestBaseWithClients,
@@ -235,21 +235,22 @@ class FollowersTests(TestBaseWithClients):
                 kwargs=cls.ARG_PROFILE
             )
         )
-        Follow.objects.create(author=cls.author)
 
     def test_can_follow_and_unfollow(self):
-        response = self.author_client.get(self.ADDRESS_PROFILE)
-        self.assertFalse(response.context['following'])
-        response = self.author_client.get(self.ADDRESS_FOLLOW, follow=True)
-        self.assertTrue(response.context['following'])
-        response = self.author_client.get(self.ADDRESS_UNFOLLOW, follow=True)
-        self.assertFalse(response.context['following'])
+        response = self.non_author_client.get(self.ADDRESS_PROFILE)
+        self.assertFalse(response.context.get('following'))
+        response = self.non_author_client.get(self.ADDRESS_FOLLOW, follow=True)
+        self.assertTrue(response.context.get('following'))
+        response = self.non_author_client.get(
+            self.ADDRESS_UNFOLLOW, follow=True
+        )
+        self.assertFalse(response.context.get('following'))
 
     def test_new_post_added_to_follow_index(self):
-        self.author_client.get(self.ADDRESS_FOLLOW, follow=True)
+        self.non_author_client.get(self.ADDRESS_FOLLOW, follow=True)
         response_author = self.author_client.get(reverse('posts:follow_index'))
         response_non_author = self.non_author_client.get(
             reverse('posts:follow_index')
         )
-        self.assertIn(self.post, response_author.context['page_obj'])
-        self.assertNotIn(self.post, response_non_author.context['page_obj'])
+        self.assertNotIn(self.post, response_author.context['page_obj'])
+        self.assertIn(self.post, response_non_author.context['page_obj'])

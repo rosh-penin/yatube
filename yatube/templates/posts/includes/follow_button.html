@@ -8,7 +8,7 @@
       >
         Отписаться
       </a>
-    {% else %}
+    {% elif following is False %}
       <a
         class="btn btn-lg btn-primary"
         href="{% url 'posts:profile_follow' author.username %}" role="button"

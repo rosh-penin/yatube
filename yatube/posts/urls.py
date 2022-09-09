@@ -32,12 +32,12 @@ urlpatterns = [
     path('follow/', views.FollowIndexView.as_view(), name='follow_index'),
     path(
         'profile/<str:username>/follow/',
-        views.ProfileFollowUnFollowView.as_view(),
+        views.ProfileFollowView.as_view(),
         name='profile_follow'
     ),
     path(
         'profile/<str:username>/unfollow/',
-        views.ProfileFollowUnFollowView.as_view(),
+        views.ProfileUnFollowView.as_view(),
         name='profile_unfollow'
     ),
 ]

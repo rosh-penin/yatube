@@ -90,13 +90,14 @@ class Comment(CreatedModel):
 
 
 class Follow(models.Model):
-    user = models.ManyToManyField(
+    # Я все еще считаю что OneToOne и ManyToMany тут смотрелись бы лучше.
+    user = models.ForeignKey(
         User,
+        on_delete=models.CASCADE,
         related_name='follower',
         verbose_name='подписчик',
-        blank=True,
     )
-    author = models.OneToOneField(
+    author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='following',

@@ -3,12 +3,14 @@ import shutil
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from posts.models import Post, Group, User
+from posts.models import Post, Group, User, Comment
 from .constants import TEMP_MEDIA_ROOT
 from .utils import create_image
 
 
+@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class FormsTest(TestCase):
+    """Testing various forms."""
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -25,14 +27,23 @@ class FormsTest(TestCase):
         )
         cls.author_client = Client()
         cls.author_client.force_login(cls.author)
+        cls.image = create_image()
+
+    @classmethod
+    def tearDownClass(cls):
+        """Delete temp media folder."""
+        super().tearDownClass()
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def test_authorized_user_creates_post(self):
         "Авторизованный пользователь может опубликовать пост"
-        posts = list(Post.objects.all())
-        posts_count_start = Post.objects.count()
+        posts = Post.objects.all()
+        posts_count_start = posts.count()
+        posts_initial = list(posts)
         form_data = {
             'text': 'Someone needs a new fish',
             'group': self.group.id,
+            'image': self.image
         }
         response = self.author_client.post(
             reverse('posts:post_create'),
@@ -47,13 +58,15 @@ class FormsTest(TestCase):
                 )
             )
 
-        posts = set(Post.objects.all()).difference(posts)
+        posts = set(Post.objects.all()).difference(posts_initial)
         self.assertEqual(1, len(posts))
         self.assertEqual(Post.objects.count(), posts_count_start + 1)
         posts = posts.pop()
 
         form_data.update({'author': self.author, 'group': self.group})
         for field, value in form_data.items():
+            if field == 'image':
+                value = f'posts/{value}'
             with self.subTest(name='post correct', field=field):
                 self.assertEqual(getattr(posts, field), value)
 
@@ -76,9 +89,13 @@ class FormsTest(TestCase):
         self.post.refresh_from_db()
         self.assertEqual(self.post.text, form_data['text'])
         self.assertEqual(self.post.author, self.author)
-        self.assertNotEqual(self.group.id, form_data['group'])
+        self.assertNotEqual(self.post.group, self.group)
 
-    def test_comments(self):
+    def test_comment_create(self):
+        """Authorized can create new comment, anon redirected to login."""
+        comments = Comment.objects.all()
+        comments_count = comments.count()
+        comments_initial = list(comments)
         address = reverse(
             'posts:add_comment',
             kwargs={'post_id': self.post.pk}
@@ -86,16 +103,16 @@ class FormsTest(TestCase):
         form_data = {
             'text': 'abyrvalg abyrvalgovich chaika',
         }
-        with self.subTest(name='AuthorCreatesPost'):
+        with self.subTest(name='AuthorCreatesComment'):
             response = self.author_client.post(
                 address,
                 data=form_data,
                 follow=True
             )
-            self.assertEqual(
-                response.context['comments'][0].text,
-                form_data['text']
-            )
+            comments = set(Comment.objects.all()).difference(comments_initial)
+            self.assertEqual(1, len(comments))
+            self.assertEqual(Comment.objects.count(), comments_count + 1)
+
         with self.subTest(name='AnonRedirected'):
             response = self.client.post(
                 address,

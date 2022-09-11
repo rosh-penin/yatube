@@ -7,10 +7,10 @@ from django.test import override_settings
 from posts.models import Post, Group
 from posts.constants import PAGES
 from .constants import (
-    TestBaseWithClients,
     MULTIPLIER_FOR_EVERYTHING,
     TEMP_MEDIA_ROOT
 )
+from .fixtures import TestBaseWithClients
 from .utils import forms_for_test, create_image
 
 
@@ -18,7 +18,7 @@ class TemplateTests(TestBaseWithClients):
 
     def test_namespace_template_auth(self):
         """Getting template through namespace:name."""
-        context = {
+        template_addresses = {
             self.ADDRESS_INDEX: 'posts/index.html',
             self.ADDRESS_GROUP: 'posts/group_list.html',
             self.ADDRESS_PROFILE: 'posts/profile.html',
@@ -26,7 +26,7 @@ class TemplateTests(TestBaseWithClients):
             self.ADDRESS_CREATE: 'posts/post_create.html',
             self.ADDRESS_EDIT: 'posts/post_create.html'
         }
-        for address, expected in context.items():
+        for address, expected in template_addresses.items():
             with self.subTest(address=address, template=expected):
                 response = self.author_client.get(address)
                 self.assertTemplateUsed(response, expected)
@@ -49,12 +49,12 @@ class ContextTests(TestBaseWithClients):
 
     def test_context_and_pages_in_paginator(self):
         """Check pages, number of posts and paginator contex."""
-        context = {
+        paginated_context = {
             self.ADDRESS_INDEX: Post.objects.all(),
             self.ADDRESS_GROUP: self.group.posts.all(),
             self.ADDRESS_PROFILE: self.author.posts.all(),
         }
-        for address, posts in context.items():
+        for address, posts in paginated_context.items():
             if posts.count() % PAGES != 0:
                 count_modifier = 1
             count_pages = (posts.count() // PAGES) + count_modifier
@@ -70,20 +70,20 @@ class ContextTests(TestBaseWithClients):
                         cut_posts,
                         transform=lambda x: x
                     )
-                    for num, value in enumerate(
-                        response.context['page_obj']
-                    ):
+                    # for num, value in enumerate(
+                    #     response.context['page_obj']
+                    # ):
 
-                        for field in ('text', 'group', 'author', 'id'):
-                            with self.subTest(
-                                address=address,
-                                page=i,
-                                post_num=num
-                            ):
-                                self.assertEqual(
-                                    getattr(value, field),
-                                    getattr(cut_posts[num], field)
-                                )
+                    #     for field in ('text', 'group', 'author', 'id'):
+                    #         with self.subTest(
+                    #             address=address,
+                    #             page=i,
+                    #             post_num=num
+                    #         ):
+                    #             self.assertEqual(
+                    #                 getattr(value, field),
+                    #                 getattr(cut_posts[num], field)
+                    #             )
 
     def test_context(self):
         """Everything in the right place."""

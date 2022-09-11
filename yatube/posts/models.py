@@ -28,10 +28,6 @@ class Post(CreatedModel):
     """
     Posts. Main thing this project is about.
     """
-    text = models.TextField(
-        'текст поста',
-        help_text='Введите текст поста',
-    )
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -78,10 +74,6 @@ class Comment(CreatedModel):
         related_name='comments',
         verbose_name='автор комментария',
     )
-    text = models.TextField(
-        'текст комментария',
-        help_text='Закомментируй это',
-    )
 
     class Meta:
         ordering = ('-created',)
@@ -90,6 +82,7 @@ class Comment(CreatedModel):
 
 
 class Follow(models.Model):
+    """Модель подписчиков."""
     # Я все еще считаю что OneToOne и ManyToMany тут смотрелись бы лучше.
     user = models.ForeignKey(
         User,

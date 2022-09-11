@@ -3,7 +3,8 @@ from http import HTTPStatus
 
 from django.test import override_settings
 
-from .constants import TestBaseWithClients, TEMP_MEDIA_ROOT
+from .constants import TEMP_MEDIA_ROOT
+from .fixtures import TestBaseWithClients
 
 
 @override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)

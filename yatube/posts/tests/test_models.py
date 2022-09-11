@@ -1,4 +1,4 @@
-from .constants import TestBase
+from .fixtures import TestBase
 from posts.constants import CUT_STR_POST
 
 

@@ -25,14 +25,6 @@ def get_author(username):
     return get_object_or_404(User, username=username)
 
 
-def check_following(author, user):
-    if author == user:
-        return
-    elif Follow.objects.filter(author=author, user=user).exists():
-        return True
-    return False
-
-
 # Остатки работающего кода Т_Т
 # def check_author_follow_table(author):
 #     if not Follow.objects.filter(author=author).exists():
@@ -69,14 +61,14 @@ class ProfileView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['author'] = get_author(self.kwargs['username'])
-        if self.request.user.is_authenticated:
-            temp_var = check_following(
-                get_author(self.kwargs['username']),
-                self.request.user,
-            )
-            if temp_var is not None:
-                context['following'] = temp_var
+        author = get_author(self.kwargs['username'])
+        user = self.request.user
+        context['author'] = author
+        if self.request.user.is_authenticated and user != author:
+            context['following'] = Follow.objects.filter(
+                author=author,
+                user=user
+            ).exists()
         return context
 
     def get_queryset(self):
@@ -192,8 +184,10 @@ class ProfileFollowView(LoginRequiredMixin, CreateView):
     def get(self, request, *args, **kwargs):
         author = get_author(self.kwargs['username'])
         user = request.user
-        temp_var = check_following(author, user)
-        if temp_var is False:
+        if author != user and not Follow.objects.filter(
+            author=author,
+            user=user
+        ).exists():
             Follow.objects.create(author=author, user=user)
 
         return redirect(
@@ -208,8 +202,10 @@ class ProfileUnFollowView(LoginRequiredMixin, CreateView):
     def get(self, request, *args, **kwargs):
         author = get_author(self.kwargs['username'])
         user = request.user
-        temp_var = check_following(author, user)
-        if temp_var is True:
+        if author != user and Follow.objects.filter(
+            author=author,
+            user=user
+        ).exists():
             Follow.objects.get(author=author, user=user).delete()
 
         return redirect(

@@ -7,6 +7,10 @@ class CreatedModel(models.Model):
         'Дата создания',
         auto_now_add=True
     )
+    text = models.TextField(
+        'Текст',
+        help_text='Напиши сюда',
+    )
 
     class Meta:
         # Это абстрактная модель:

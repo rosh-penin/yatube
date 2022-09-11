@@ -70,20 +70,6 @@ class ContextTests(TestBaseWithClients):
                         cut_posts,
                         transform=lambda x: x
                     )
-                    # for num, value in enumerate(
-                    #     response.context['page_obj']
-                    # ):
-
-                    #     for field in ('text', 'group', 'author', 'id'):
-                    #         with self.subTest(
-                    #             address=address,
-                    #             page=i,
-                    #             post_num=num
-                    #         ):
-                    #             self.assertEqual(
-                    #                 getattr(value, field),
-                    #                 getattr(cut_posts[num], field)
-                    #             )
 
     def test_context(self):
         """Everything in the right place."""

@@ -1,24 +1,4 @@
-from django import forms
-
 from django.core.files.uploadedfile import SimpleUploadedFile
-
-
-def forms_for_test(response):
-    """Creates dict for use in the test."""
-    return {
-        'text': (
-            response.context.get('form').fields.get('text'),
-            forms.fields.CharField
-        ),
-        'group': (
-            response.context.get('form').fields.get('group'),
-            forms.fields.ChoiceField
-        ),
-        'image': (
-            response.context.get('form').fields.get('image'),
-            forms.fields.ImageField
-        ),
-    }
 
 
 def create_image():

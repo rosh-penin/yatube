@@ -12,7 +12,7 @@ from .constants import (
     TEMP_MEDIA_ROOT
 )
 from .fixtures import TestBaseWithClients
-from .utils import forms_for_test, create_image
+from .utils import create_image
 
 
 class TemplateTests(TestBaseWithClients):

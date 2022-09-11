@@ -218,48 +218,6 @@ class ContextTests(TestBaseWithClients):
                 self.assertNotEqual(response.context['page_obj'][0], new_post)
 
 
-# @override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
-# class ImageTests(TestBaseWithClients):
-#     """New test class for images test with decorator."""
-#     @classmethod
-#     def tearDownClass(cls):
-#         """Delete temp media folder."""
-#         super().tearDownClass()
-#         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
-
-#     def test_image_in_context(self):
-#         """
-#         Create new post with image, checking that image displayed on pages.
-#         """
-#         context = (
-#             self.ADDRESS_INDEX,
-#             self.ADDRESS_GROUP,
-#             self.ADDRESS_PROFILE,
-#         )
-#         new_post = Post.objects.create(
-#             text='I wanna see the picture',
-#             author=self.author,
-#             group=self.group,
-#             image=create_image()
-#         )
-#         for address in context:
-#             with self.subTest(address=address):
-#                 response = self.author_client.get(address)
-#                 self.assertEqual(
-#                     response.context['page_obj'][0].image,
-#                     new_post.image
-#                 )
-#         address_new_post = reverse(
-#             self.URL_DETAIL,
-#             kwargs={'post_id': new_post.pk}
-#         )
-#         response = self.author_client.get(address_new_post)
-#         self.assertEqual(
-#             response.context['post'],
-#             new_post
-#         )
-
-
 class CacheTests(TestBaseWithClients):
     """Tests for cache."""
     def test_cached_content_index(self):

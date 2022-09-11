@@ -179,12 +179,11 @@ class ContextTests(TestBaseWithClients):
             if 'edit' in address:
                 with self.subTest(address=address, edit='is edit'):
                     self.assertTrue(response.context['is_edit'])
-                    self.assertEqual(response.context['id_post'], self.post.id)
             with self.subTest(name='form_is_form'):
                 self.assertIsInstance(response.context['form'], PostForm)
 
     def test_new_post(self):
-        """Checking new post getting where it should and otherwise."""
+        """Checking new post getting where it should."""
         new_group = Group.objects.create(
             title='This is not the group you are looking for',
             description='cookies for the dark side',
@@ -211,6 +210,18 @@ class ContextTests(TestBaseWithClients):
                 response = self.author_client.get(address)
                 self.assertEqual(response.context['page_obj'][0], new_post)
 
+    def test_new_post_notIn(self):
+        """Checking new post NOT getting where it shouldn't."""
+        new_group = Group.objects.create(
+            title='This is not the group you are looking for',
+            description='cookies for the dark side',
+            slug='escape-from-yavin-4',
+        )
+        new_post = Post.objects.create(
+            text='There is a place in the galaxy where the dark side...',
+            group=new_group,
+            author=self.non_author,
+        )
         context_without_new_post = (self.ADDRESS_GROUP, self.ADDRESS_PROFILE)
         for address in context_without_new_post:
             with self.subTest(address=address):
@@ -237,7 +248,7 @@ class CacheTests(TestBaseWithClients):
 
 
 class FollowersTests(TestBaseWithClients):
-    """Test for following."""
+    """Testcases for following."""
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -255,9 +266,16 @@ class FollowersTests(TestBaseWithClients):
         )
 
     def test_can_follow_and_unfollow(self):
+        """Check if user can follow."""
         response = self.non_author_client.get(self.ADDRESS_PROFILE)
         self.assertFalse(response.context.get('following'))
         response = self.non_author_client.get(self.ADDRESS_FOLLOW, follow=True)
+        self.assertTrue(response.context.get('following'))
+
+    def test_can_unfollow(self):
+        """Check if user can unfollow."""
+        Follow.objects.create(author=self.author, user=self.non_author)
+        response = self.non_author_client.get(self.ADDRESS_PROFILE)
         self.assertTrue(response.context.get('following'))
         response = self.non_author_client.get(
             self.ADDRESS_UNFOLLOW, follow=True
@@ -265,10 +283,21 @@ class FollowersTests(TestBaseWithClients):
         self.assertFalse(response.context.get('following'))
 
     def test_new_post_added_to_follow_index(self):
-        self.non_author_client.get(self.ADDRESS_FOLLOW, follow=True)
-        response_author = self.author_client.get(reverse('posts:follow_index'))
-        response_non_author = self.non_author_client.get(
-            reverse('posts:follow_index')
+        """Create new post and check follow_index_page."""
+        Follow.objects.create(author=self.author, user=self.non_author)
+        new_post = Post.objects.create(
+            text='asdasdasd',
+            author=self.author,
         )
-        self.assertNotIn(self.post, response_author.context['page_obj'])
-        self.assertIn(self.post, response_non_author.context['page_obj'])
+        response = self.non_author_client.get(reverse('posts:follow_index'))
+        self.assertIn(new_post, response.context['page_obj'])
+
+    def test_new_post_not_added_to_follow_index(self):
+        """Create new post and check follow_index_page."""
+        Follow.objects.create(author=self.author, user=self.non_author)
+        new_post = Post.objects.create(
+            text='asdasdasd',
+            author=self.author,
+        )
+        response_author = self.author_client.get(reverse('posts:follow_index'))
+        self.assertNotIn(new_post, response_author.context['page_obj'])

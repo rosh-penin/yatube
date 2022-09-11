@@ -2,9 +2,7 @@ from django.db import models
 from django.contrib.auth import get_user_model
 
 from core.models import CreatedModel
-
 from .constants import CUT_STR_POST
-
 
 User = get_user_model()
 
@@ -84,6 +82,7 @@ class Comment(CreatedModel):
 class Follow(models.Model):
     """Модель подписчиков."""
     # Я все еще считаю что OneToOne и ManyToMany тут смотрелись бы лучше.
+    # Один автор, одна подписка, одна запись в базе.
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -96,3 +95,11 @@ class Follow(models.Model):
         related_name='following',
         verbose_name='писака',
     )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'author'],
+                name='unique following'
+            )
+        ]

@@ -4,7 +4,8 @@ from django.core.cache import cache
 from django.urls import reverse
 from django.test import override_settings
 
-from posts.models import Post, Group
+from posts.forms import PostForm, CommentForm
+from posts.models import Post, Group, Follow
 from posts.constants import PAGES
 from .constants import (
     MULTIPLIER_FOR_EVERYTHING,
@@ -32,6 +33,7 @@ class TemplateTests(TestBaseWithClients):
                 self.assertTemplateUsed(response, expected)
 
 
+@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class ContextTests(TestBaseWithClients):
     @classmethod
     def setUpClass(cls):
@@ -43,23 +45,48 @@ class ContextTests(TestBaseWithClients):
                     text='testing is boring ' * MULTIPLIER_FOR_EVERYTHING,
                     author=cls.author,
                     group=cls.group,
+                    image=create_image(),
+                )
+            )
+            generating_list.append(
+                Post(
+                    text='I am not an author',
+                    author=cls.non_author,
+                    group=cls.group,
+                    image=create_image(),
                 )
             )
         Post.objects.bulk_create(generating_list)
+        Follow.objects.create(author=cls.author, user=cls.non_author)
+        cls.follower = cls.non_author.follower.get(author=cls.author)
+        cls.fields_page = ('text', 'group', 'author', 'id')
+
+    @classmethod
+    def tearDownClass(cls):
+        """Delete temp media folder."""
+        super().tearDownClass()
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
+
+    def fields_testing(self, context, value, field):
+        self.assertEqual(
+            getattr(context, field),
+            getattr(value, field)
+        )
 
     def test_context_and_pages_in_paginator(self):
-        """Check pages, number of posts and paginator contex."""
+        """Check pages, number of posts and querysets of them."""
         paginated_context = {
             self.ADDRESS_INDEX: Post.objects.all(),
             self.ADDRESS_GROUP: self.group.posts.all(),
             self.ADDRESS_PROFILE: self.author.posts.all(),
+            self.ADDRESS_PROFOLLOW: self.follower.author.posts.all(),
         }
         for address, posts in paginated_context.items():
             if posts.count() % PAGES != 0:
                 count_modifier = 1
             count_pages = (posts.count() // PAGES) + count_modifier
             for i in range(1, count_pages + 1):
-                response = self.author_client.get(address + f'?page={i}')
+                response = self.non_author_client.get(address + f'?page={i}')
                 with self.subTest(
                     address=address,
                     page=i,
@@ -71,43 +98,90 @@ class ContextTests(TestBaseWithClients):
                         transform=lambda x: x
                     )
 
-    def test_context(self):
-        """Everything in the right place."""
-        context = {
-            self.ADDRESS_GROUP: ({'group': ('title', 'pk')}, self.group),
-            self.ADDRESS_PROFILE: (
-                {'author': ('username', 'pk')},
-                self.author,
-            ),
-            self.ADDRESS_DETAIL: (
-                {'post': ('text', 'group', 'author', 'id')},
-                self.post
-            ),
-        }
-        for address, (arguments, object_link) in context.items():
-            response = self.author_client.get(address)
-            for key, fields in arguments.items():
-                value = response.context[key]
-                for field in fields:
-                    with self.subTest(address=address, key=key):
-                        self.assertEqual(
-                            getattr(value, field),
-                            getattr(object_link, field)
-                        )
+    def test_context_index(self):
+        """Everything in the right place. Index."""
+        first_post = Post.objects.first()
+        response = self.author_client.get(self.ADDRESS_INDEX)
+        for field in self.fields_page:
+            self.fields_testing(
+                response.context['page_obj'][0],
+                first_post,
+                field,
+            )
+
+    def test_context_group(self):
+        """Everything in the right place. Group."""
+        first_post = self.group.posts.first()
+        response = self.author_client.get(self.ADDRESS_GROUP)
+        with self.subTest(name='page fields'):
+            for field in self.fields_page:
+                self.fields_testing(
+                    response.context['page_obj'][0],
+                    first_post,
+                    field
+                )
+        for field in ('title', 'pk'):
+            self.fields_testing(
+                response.context['group'],
+                self.group,
+                field
+            )
+
+    def test_context_profile(self):
+        """Everything in the right place. Profile."""
+        first_post = self.author.posts.first()
+        response = self.non_author_client.get(self.ADDRESS_PROFILE)
+        with self.subTest(name='page fields'):
+            for field in self.fields_page:
+                self.fields_testing(
+                    response.context['page_obj'][0],
+                    first_post,
+                    field
+                )
+        with self.subTest(name='author fields'):
+            for field in ('username', 'pk'):
+                self.fields_testing(
+                    response.context['author'],
+                    self.author,
+                    field
+                )
+        self.assertTrue(response.context.get('following'))
+
+    def test_context_detail(self):
+        """Everything in the right place. Post detail."""
+        response = self.author_client.get(self.ADDRESS_DETAIL)
+        for field in ('text', 'group', 'author', 'id'):
+            self.fields_testing(
+                response.context['post'],
+                self.post,
+                field
+            )
+        self.assertIsInstance(
+            response.context['form'],
+            CommentForm
+        )
+
+    def test_context_profollow(self):
+        first_post = self.follower.author.posts.first()
+        response = self.non_author_client.get(self.ADDRESS_PROFOLLOW)
+        for field in self.fields_page:
+            self.fields_testing(
+                response.context['page_obj'][0],
+                first_post,
+                field,
+            )
 
     def test_context_forms(self):
         """Everything in the right place, but for forms."""
-        context = (self.ADDRESS_EDIT, self.ADDRESS_CREATE)
-        for address in context:
+        addresses = (self.ADDRESS_EDIT, self.ADDRESS_CREATE)
+        for address in addresses:
             response = self.author_client.get(address)
             if 'edit' in address:
                 with self.subTest(address=address, edit='is edit'):
                     self.assertTrue(response.context['is_edit'])
                     self.assertEqual(response.context['id_post'], self.post.id)
-            context_items = forms_for_test(response)
-            for key, (object, expected) in context_items.items():
-                with self.subTest(name=key):
-                    self.assertIsInstance(object, expected)
+            with self.subTest(name='form_is_form'):
+                self.assertIsInstance(response.context['form'], PostForm)
 
     def test_new_post(self):
         """Checking new post getting where it should and otherwise."""
@@ -144,46 +218,46 @@ class ContextTests(TestBaseWithClients):
                 self.assertNotEqual(response.context['page_obj'][0], new_post)
 
 
-@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
-class ImageTests(TestBaseWithClients):
-    """New test class for images test with decorator."""
-    @classmethod
-    def tearDownClass(cls):
-        """Delete temp media folder."""
-        super().tearDownClass()
-        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
+# @override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
+# class ImageTests(TestBaseWithClients):
+#     """New test class for images test with decorator."""
+#     @classmethod
+#     def tearDownClass(cls):
+#         """Delete temp media folder."""
+#         super().tearDownClass()
+#         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
-    def test_image_in_context(self):
-        """
-        Create new post with image, checking that image displayed on pages.
-        """
-        context = (
-            self.ADDRESS_INDEX,
-            self.ADDRESS_GROUP,
-            self.ADDRESS_PROFILE,
-        )
-        new_post = Post.objects.create(
-            text='I wanna see the picture',
-            author=self.author,
-            group=self.group,
-            image=create_image()
-        )
-        for address in context:
-            with self.subTest(address=address):
-                response = self.author_client.get(address)
-                self.assertEqual(
-                    response.context['page_obj'][0].image,
-                    new_post.image
-                )
-        address_new_post = reverse(
-            self.URL_DETAIL,
-            kwargs={'post_id': new_post.pk}
-        )
-        response = self.author_client.get(address_new_post)
-        self.assertEqual(
-            response.context['post'],
-            new_post
-        )
+#     def test_image_in_context(self):
+#         """
+#         Create new post with image, checking that image displayed on pages.
+#         """
+#         context = (
+#             self.ADDRESS_INDEX,
+#             self.ADDRESS_GROUP,
+#             self.ADDRESS_PROFILE,
+#         )
+#         new_post = Post.objects.create(
+#             text='I wanna see the picture',
+#             author=self.author,
+#             group=self.group,
+#             image=create_image()
+#         )
+#         for address in context:
+#             with self.subTest(address=address):
+#                 response = self.author_client.get(address)
+#                 self.assertEqual(
+#                     response.context['page_obj'][0].image,
+#                     new_post.image
+#                 )
+#         address_new_post = reverse(
+#             self.URL_DETAIL,
+#             kwargs={'post_id': new_post.pk}
+#         )
+#         response = self.author_client.get(address_new_post)
+#         self.assertEqual(
+#             response.context['post'],
+#             new_post
+#         )
 
 
 class CacheTests(TestBaseWithClients):

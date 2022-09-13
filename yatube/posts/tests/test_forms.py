@@ -4,7 +4,7 @@ from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from posts.models import Post, Group, User, Comment
-from .constants import TEMP_MEDIA_ROOT
+from posts.constants import TEMP_MEDIA_ROOT
 from .utils import create_image
 
 
@@ -36,7 +36,10 @@ class FormsTest(TestCase):
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def test_authorized_user_creates_post(self):
-        "Авторизованный пользователь может опубликовать пост"
+        """
+        Авторизованный пользователь может опубликовать пост.
+        Now with image.
+        """
         posts = Post.objects.all()
         posts_count_start = posts.count()
         posts_initial = list(posts)
@@ -126,39 +129,3 @@ class FormsTest(TestCase):
                 response,
                 f'/auth/login/?next={address}'
             )
-
-
-@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
-class ImageTests(TestCase):
-    """
-    New test class for images test with decorator.
-    For forms.
-    """
-    @classmethod
-    def tearDownClass(cls):
-        """Delete temp media folder."""
-        super().tearDownClass()
-        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
-
-    def test_create_form_with_image(self):
-        author = User.objects.create(username='images-user')
-        author_client = Client()
-        author_client.force_login(author)
-        group = Group.objects.create(
-            title='ImageGroup',
-            description='des',
-            slug='group-image'
-        )
-        image = create_image()
-        data_form = {
-            'text': 'You live without colors',
-            'group': group.pk,
-            'image': image
-        }
-        author_client.post(
-            reverse('posts:post_create'),
-            data=data_form,
-        )
-        self.assertTrue(
-            Post.objects.filter(image=f'posts/{image}').exists()
-        )

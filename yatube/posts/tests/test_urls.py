@@ -3,7 +3,7 @@ from http import HTTPStatus
 
 from django.test import override_settings
 
-from .constants import TEMP_MEDIA_ROOT
+from posts.constants import TEMP_MEDIA_ROOT
 from .fixtures import TestBaseWithClients
 
 
@@ -28,12 +28,17 @@ class UrlTests(TestBaseWithClients):
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def test_url_access_with_templates_for_authorized_user(self):
+        """Authorized user can access page and get correct template."""
         for address, template in self.urls_of_templates.items():
             with self.subTest(address=address):
                 response = self.author_client.get(address)
                 self.assertTemplateUsed(response, template)
 
     def test_url_access_with_templates_for_anonymous(self):
+        """
+        Anonymous not getting restricted page with correct template.
+        Otherwise the same as for authorized one.
+        """
         for address, template in self.urls_of_templates.items():
             if address in ('/create/', f'/posts/{self.post.id}/edit/'):
                 with self.subTest(address=address, name='Refuse anon'):
@@ -46,6 +51,7 @@ class UrlTests(TestBaseWithClients):
                 self.assertTemplateUsed(response, template)
 
     def test_redirects(self):
+        """Users redirected when trying to access restricted for them."""
         for address in ('/create/', f'/posts/{self.post.pk}/edit/'):
             with self.subTest(name='anon redirect', address=address):
                 response = self.client.get(address)
@@ -67,5 +73,6 @@ class UrlTests(TestBaseWithClients):
             )
 
     def test_404(self):
+        """Trying to access non-existing page will result in error."""
         response = self.author_client.get('/posts/chupakabra/')
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)

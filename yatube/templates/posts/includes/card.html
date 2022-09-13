@@ -19,7 +19,7 @@
     {% if post.author ==  request.user %}
     <a href="{% url 'posts:post_edit' post.pk %}">редактировать</a>
     {% endif %}
-    {% if post.group %}
+    {% if post.group and not group %}
     <a href="{% url 'posts:group_list' post.group.slug %}">все записи группы</a>
     {% endif %}
 </article>

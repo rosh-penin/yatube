@@ -118,7 +118,7 @@ class PostEditView(LoginRequiredMixin, UpdateView):
     pk_url_kwarg = 'post_id'
 
     def get_post(self):
-        return Post.objects.get(pk=self.kwargs.get('post_id'))
+        return get_object_or_404(Post, pk=self.kwargs.get('post_id'))
 
     def get_success_url(self):
         return reverse(
@@ -175,10 +175,6 @@ class FollowIndexView(LoginRequiredMixin, ListView):
     paginate_by = PAGES
 
     def get_queryset(self):
-        related_model_queries = self.request.user.follower.all()
-        posts_unsorted = []
-        for single_query in related_model_queries:
-            posts_unsorted += single_query.author.posts.all()
         posts = Post.objects.filter(author__following__user=self.request.user)
 
         return posts
@@ -189,11 +185,9 @@ class ProfileFollowView(LoginRequiredMixin, CreateView):
     def get(self, request, *args, **kwargs):
         author = get_author(self.kwargs['username'])
         user = request.user
-        if author != user and not Follow.objects.filter(
-            author=author,
-            user=user
-        ).exists():
-            Follow.objects.create(author=author, user=user)
+        # Is there a way to check this on model level?
+        if author != user:
+            Follow.objects.get_or_create(author=author, user=user)
 
         return redirect(
             reverse(
@@ -208,11 +202,7 @@ class ProfileUnFollowView(LoginRequiredMixin, CreateView):
     def get(self, request, *args, **kwargs):
         author = get_author(self.kwargs['username'])
         user = request.user
-        if author != user and Follow.objects.filter(
-            author=author,
-            user=user
-        ).exists():
-            Follow.objects.get(author=author, user=user).delete()
+        Follow.objects.filter(author=author, user=user).delete()
 
         return redirect(
             reverse(

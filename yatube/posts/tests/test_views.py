@@ -6,11 +6,7 @@ from django.test import override_settings
 
 from posts.forms import PostForm, CommentForm
 from posts.models import Post, Group, Follow
-from posts.constants import PAGES
-from .constants import (
-    MULTIPLIER_FOR_EVERYTHING,
-    TEMP_MEDIA_ROOT
-)
+from posts.constants import PAGES, MULTIPLIER_FOR_EVERYTHING, TEMP_MEDIA_ROOT
 from .fixtures import TestBaseWithClients
 from .utils import create_image
 
@@ -73,7 +69,7 @@ class ContextTests(TestBaseWithClients):
             getattr(value, field)
         )
 
-    def test_context_and_pages_in_paginator(self):
+    def test_pages_and_querysets_in_paginator(self):
         """Check pages, number of posts and querysets of them."""
         paginated_context = {
             self.ADDRESS_INDEX: Post.objects.all(),
@@ -148,20 +144,34 @@ class ContextTests(TestBaseWithClients):
         self.assertTrue(response.context.get('following'))
 
     def test_context_detail(self):
-        """Everything in the right place. Post detail."""
+        """
+        Everything in the right place. Post detail.
+        Also comments.
+        """
         response = self.author_client.get(self.ADDRESS_DETAIL)
         for field in ('text', 'group', 'author', 'id'):
-            self.fields_testing(
-                response.context['post'],
-                self.post,
-                field
+            with self.subTest(name='context', field=field):
+                self.fields_testing(
+                    response.context['post'],
+                    self.post,
+                    field
+                )
+        with self.subTest(name='form is there'):
+            self.assertIsInstance(
+                response.context['form'],
+                CommentForm
             )
-        self.assertIsInstance(
-            response.context['form'],
-            CommentForm
-        )
+        post = Post.objects.get(pk=self.ARG_DETAIL['post_id'])
+        comments = post.comments.all()
+        for num, comment in enumerate(comments):
+            with self.subTest(name='comments check'):
+                self.assertEqual(
+                    response.context['comments'][num],
+                    comment
+                )
 
     def test_context_profollow(self):
+        """Everything in the right place. Follow index page."""
         first_post = self.follower.author.posts.first()
         response = self.non_author_client.get(self.ADDRESS_PROFOLLOW)
         for field in self.fields_page:
@@ -265,22 +275,48 @@ class FollowersTests(TestBaseWithClients):
             )
         )
 
-    def test_can_follow_and_unfollow(self):
-        """Check if user can follow."""
+    def test_can_follow(self):
+        """Check if user can follow. Also checking button for following."""
         response = self.non_author_client.get(self.ADDRESS_PROFILE)
         self.assertFalse(response.context.get('following'))
+        # Since there is only 1 unique entry with pair author-user in db...
+        # It should be ok to test it this way.
+        self.assertFalse(
+            Follow.objects.filter(
+                author=self.author,
+                user=self.non_author
+            ).exists()
+        )
         response = self.non_author_client.get(self.ADDRESS_FOLLOW, follow=True)
         self.assertTrue(response.context.get('following'))
+        self.assertTrue(
+            Follow.objects.filter(
+                author=self.author,
+                user=self.non_author
+            ).exists()
+        )
 
     def test_can_unfollow(self):
         """Check if user can unfollow."""
         Follow.objects.create(author=self.author, user=self.non_author)
         response = self.non_author_client.get(self.ADDRESS_PROFILE)
         self.assertTrue(response.context.get('following'))
+        self.assertTrue(
+            Follow.objects.filter(
+                author=self.author,
+                user=self.non_author
+            ).exists()
+        )
         response = self.non_author_client.get(
             self.ADDRESS_UNFOLLOW, follow=True
         )
         self.assertFalse(response.context.get('following'))
+        self.assertFalse(
+            Follow.objects.filter(
+                author=self.author,
+                user=self.non_author
+            ).exists()
+        )
 
     def test_new_post_added_to_follow_index(self):
         """Create new post and check follow_index_page."""
